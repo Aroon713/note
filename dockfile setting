@@ -1,0 +1,44 @@
+FROM ubuntu:14.04
+
+ ARG username=unintialized
+ ARG useruid=unintialized
+ ARG useremail=unintialized
+ RUN if [ $username != unintialized ]; then echo "Username :" $username ; else echo  "Please specify username"; exit 1; fi
+ RUN if [ $useruid != unintialized ]; then echo echo "UserUid :" $useruid ; else     echo "Please specify userid"; exit 1; fi
+ RUN if [ $useremail != unintialized ]; then echo "Useremail :" $useremail ; else    echo "Please specify useremail"; exit 1; fi
+
+ ENV http_proxy $http_proxy
+ ENV https_proxy $https_proxy
+
+ RUN apt-get update
+
+ RUN apt-get --yes --force-yes install ncurses-dev
+
+ ###
+ ### Prequisites: Generic
+ ###
+ RUN apt-get --yes --force-yes install screen
+ RUN apt-get --yes --force-yes install vim
+ RUN apt-get --yes --force-yes install bash-completion
+ RUN apt-get --yes --force-yes install sudo
+ RUN apt-get --yes --force-yes install git
+
+ RUN rm -rf /var/lib/apt/lists/*
+
+ RUN useradd -ms /bin/bash $username --uid $useruid
+ RUN adduser $username sudo
+ RUN sed -i.bkp -e \
+       's/%sudo\s\+ALL=(ALL\(:ALL\)\?)\s\+ALL/%sudo ALL=NOPASSWD:ALL/g' \
+       /etc/sudoers
+
+ USER $username
+ WORKDIR /home/$username
+ COPY jupyter_notebook_config.py /home/$username/.jupyter/
+
+ COPY setup_git.sh ./setup_git.sh
+ COPY setup_rc.sh ./setup_rc.sh
+
+ RUN bash ./setup_git.sh $username $useremail
+ RUN bash ./setup_rc.sh
+ RUN rm ./setup_git.sh
+ RUN rm ./setup_rc.sh
