@@ -19,8 +19,11 @@ docker run --name snpe_jaehun2  -it -e DISPLAY=$DISPLAY -v /home/jaehun/workspac
 참조 : https://lynlab.co.kr/blog/18/
 
 sudo apt-get update
+
 sudo apt-get --yes install python-dev
+
 sudo apt-get --yes install libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev protobuf-compiler libatlas-base-dev nano zip libgflags-dev libgoogle-glog-dev liblmdb-dev python-dev python-matplotlib python-numpy python-protobuf python-scipy python-skimage python-sphinx wget zip default-jdk
+
 sudo apt-get --yes install --no-install-recommends libboost-all-dev
 
 
