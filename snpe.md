@@ -5,7 +5,7 @@ snpe 설치용
 docker run ubuntu:14.04
 
 
-docker build -t snpe_jaehun  -f Dockerfile --build-arg username=jaehun --build-arg useruid=$UID --build-arg useremail=jaehun.jeong1@partner.samsung.com  .
+docker build -t snpe_jaehun  -f Dockerfile --build-arg username=<USERNAME> --build-arg useruid=$UID --build-arg useremail=<USER_EMAIL> .
 
 docker run --name snpe_jaehun2  -it -e DISPLAY=$DISPLAY -v /home/jaehun/workspace/:/home/jaehun/workspace -v /tmp/.X11-unix:/tmp/.X11-unix -v /root/.Xauthority:/root/.Xauthority:rw -v /home/jaehun/.ssh:/home/jaehun/.ssh -p 8001:8888 snpe_jaehun
 
