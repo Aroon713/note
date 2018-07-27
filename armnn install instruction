@@ -83,18 +83,23 @@ These are step by step instructions for using the Android NDK to build ArmNN. Th
 
 7. Download the Android NDK and make a standalone toolchain
 Download the Android NDK from the official website:
+
 sudo apt --yes install zip wget
 mkdir -p ~/workspace/toolchains
 cd ~/workspace/toolchains
+
 # For Mac OS, change the NDK download link accordingly.
+
 wget https://dl.google.com/android/repository/android-ndk-r17b-linux-x86_64.zip
 unzip android-ndk-r17b-linux-x86_64.zip
 export NDK=~/workspace/toolchains/android-ndk-r17b
+
 You may want to append export NDK=~/workspace/toolchains/android-ndk-r17b to your ~/.bashrc (or ~/.bash_profile in Mac OS).
 
 Make a standalone toolchain:
 (Requires python if not previously installed: sudo apt install python)
 # Create an arm64 API 26 libc++ toolchain.
+
 $NDK/build/tools/make_standalone_toolchain.py \
 --arch arm64 \
 --api 26 \
@@ -107,6 +112,7 @@ You may want to append export PATH=$HOME/workspace/toolchains/aarch64-android-r1
 8. Build the Boost C++ libraries
 
 Download Boost version 1.64:
+
 mkdir ~/workspace/boost
 cd ~/workspace/boost
 wget -c 'http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.bz2/download'
@@ -114,6 +120,7 @@ tar -xvf download
 
 Build :
 (Requires gcc if not previously installed: sudo apt install gcc)
+
 echo "using gcc : arm : aarch64-linux-android-clang++ ;" > $HOME/workspace/boost/user-config.jam
 cd ~/workspace/boost/boost_1_64_0
 ./bootstrap.sh --prefix=$HOME/workspace/boost/install
@@ -122,27 +129,33 @@ toolset=gcc-arm link=static cxxflags=-fPIC --with-filesystem \
 --with-test --with-log --with-program_options -j16
 
 9. Build the Compute Library
+
 Clone the Compute Library:
 (Requires Git if not previously installed: sudo apt install git)
+
 cd ~/workspace
 git clone https://github.com/ARM-software/ComputeLibrary.git
 
 Build:
 (Requires SCons if not previously installed: sudo apt install scons)
+
 cd ComputeLibrary
 scons arch=arm64-v8a neon=1 opencl=1 embed_kernels=1 extra_cxx_flags="-fPIC" \
 benchmark_tests=0 validation_tests=0 os=android -j16
 
 10. Build Google's Protobuf library
+
 Clone protobuf:
+
  mkdir ~/workspace/google
  cd ~/workspace/google
  git clone https://github.com/google/protobuf.git
  cd protobuf
-git checkout -b v3.5.2 v3.5.2
+ git checkout -b v3.5.2 v3.5.2
 
 Build a native (x86) version of the protobuf libraries and compiler (protoc):
 (Requires cUrl, autoconf, llibtool, and other build dependencies if not previously installed: sudo apt install curl autoconf libtool build-essential g++)
+
 ./autogen.sh
 mkdir x86_build
 cd x86_build
@@ -151,7 +164,8 @@ make install -j16
 cd ..
 
 Build the arm64 version of the protobuf libraries:
- mkdir arm64_build
+
+mkdir arm64_build
  cd arm64_build
  CC=aarch64-linux-android-clang \
    CXX=aarch64-linux-android-clang++ \
@@ -163,6 +177,7 @@ Build the arm64 version of the protobuf libraries:
 cd ..
 
 Build for caffe:
+
 sudo ./configure
 sudo make -j16
 sudo make check -j16
@@ -177,12 +192,14 @@ protoc --version
 
 11. Download Caffe
 Clone Caffe source code:
- cd ~/workspace/google/
+
+cd ~/workspace/google/
 https://github.com/BVLC/caffe.git
 
 12. Build ArmNN
 Clone ArmNN source code:
- cd ~/workspace/
+
+cd ~/workspace/
 git clone https://github.com/ARM-software/armnn.git
 Install dependencies for Caffe:
 sudo apt --yes install libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev
@@ -192,6 +209,7 @@ sudo apt --yes install python-dev
 sudo apt --yes install libgflags-dev libgoogle-glog-dev liblmdb-dev
 
 Build Caffe:
+
 sudo apt install cmake
 mkdir build
 cd build
@@ -201,6 +219,7 @@ make install -j16
 make runtest -j16
 
 Build ArmNN:
+
 mkdir ~/workspace/armnn/build
 cd ~/workspace/armnn/build
 CXX=aarch64-linux-android-clang++ \
@@ -223,14 +242,18 @@ make -j16
 
 Run the ArmNN unit tests on an Android device (in the server )
 Push the build results to an Android device and make symbolic links for shared libraries:
- adb push libarmnnCaffeParser.so /data/local/tmp/
- adb push libarmnn.so  /data/local/tmp/
+
+adb push libarmnnCaffeParser.so /data/local/tmp/
+adb push libarmnn.so  /data/local/tmp/
 adb push UnitTests  /data/local/tmp/
-adb push      $NDK/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_shared.so /data/local/tmp/
+adb push $NDK/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_shared.so   /data/local/tmp/
 adb push $HOME/workspace/google/arm64_pb_install/lib/libprotobuf.so    /data/local/tmp/libprotobuf.so.15.0.1
- adb shell 'ln -s libprotobuf.so.15.0.1 /data/local/tmp/libprotobuf.so.15'
+adb shell 'ln -s libprotobuf.so.15.0.1 /data/local/tmp/libprotobuf.so.15'
 adb shell 'ln -s libprotobuf.so.15.0.1 /data/local/tmp/libprotobuf.so'
+
 Run ArmNN unit tests:
+
 adb shell 'LD_LIBRARY_PATH=/data/local/tmp /data/local/tmp/UnitTests'
+
 If libarmnnUtils.a is present in ~/workspace/armnn/build/ and the unit tests run without failure then the build was successful.
 
