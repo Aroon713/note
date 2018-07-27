@@ -1,0 +1,236 @@
+1. Make Dockfile 
+FROM ubuntu:18.04
+
+ARG username=unintialized
+ARG useruid=unintialized
+ARG useremail=unintialized
+RUN if [ $username != unintialized ]; then echo "Username :" $username ; else echo "Please specify username"; exit 1; fi
+RUN if [ $useruid != unintialized ]; then echo echo "UserUid :" $useruid ; else echo "Please specify userid"; exit 1; fi
+RUN if [ $useremail != unintialized ]; then echo "Useremail :" $useremail ; else echo "Please specify useremail"; exit 1; fi
+
+ENV http_proxy $http_proxy
+ENV https_proxy $https_proxy
+
+RUN apt-get update
+
+RUN apt-get --yes --force-yes install ncurses-dev
+
+###
+### Prequisites: Generic
+###
+RUN apt-get --yes --force-yes install screen
+RUN apt-get --yes --force-yes install vim
+RUN apt-get --yes --force-yes install bash-completion
+RUN apt-get --yes --force-yes install sudo
+RUN apt-get --yes --force-yes install git
+
+RUN rm -rf /var/lib/apt/lists/*
+
+RUN useradd -ms /bin/bash $username --uid $useruid
+RUN adduser $username sudo
+RUN sed -i.bkp -e \
+'s/%sudo\s\+ALL=(ALL\(:ALL\)\?)\s\+ALL/%sudo ALL=NOPASSWD:ALL/g' \
+/etc/sudoers
+
+USER $username
+WORKDIR /home/$username
+
+COPY setup_git.sh ./setup_git.sh
+COPY setup_rc.sh ./setup_rc.sh
+
+RUN bash ./setup_git.sh $username $useremail
+RUN bash ./setup_rc.sh
+RUN rm ./setup_git.sh
+RUN rm ./setup_rc.sh
+
+2. make setup_git.sh
+#git config
+git config --global user.email $2
+git config --global user.name $1
+git config --global alias.lol "log --pretty=oneline --abbrev-commit --graph --decorate"
+git config --global core.editor "vim"
+git config --global http.sslVerify false
+
+3. make setup_git.rc
+# gdbinit
+echo "set history filename ~/.gdb_history" >> ~/.gdbinit
+echo "set history save on" >> ~/.gdbinit
+
+#screen rc
+echo "hardstatus alwayslastline" >> ~/.screenrc
+echo "hardstatus string '%{= kG}[ %{G}%H %{g}][%=%{=kw}%?%-Lw%?%{r}(%{W}%n*%f%t%?(%u)%?%{r})%{w}%?%+Lw%?%?%=%{g}][%{B}%Y-%m-%d %{W}%c %{g}]'" >> ~/.screenrc
+echo "defshell -bash" >> ~/.screenrc
+
+#vimrc
+echo "set expandtab" >> ~/.vimrc
+echo "set shiftwidth=2" >> ~/.vimrc
+echo "set softtabstop=2">> ~/.vimrc
+
+4. make local docker image
+docker build -t <IMAGE_NAME>  -f Dockerfile --build-arg username=<USERNAME> --build-arg useruid=$UID --build-arg useremail=<YOUR_EMAIL> .
+
+5. make container
+docker run --name <CONTAINER_NAME>  -it -e DISPLAY=$DISPLAY -v /home/<USERNAME>/workspace/:/home/<USERNAME>/workspace -v /tmp/.X11-unix:/tmp/.X11-unix -v /root/.Xauthority:/root/.Xauthority:rw -v /home/<YOUR_NAME>/.ssh:/home/<YOUR_NAME>/.ssh -p 8000:8000 <IMAGE_NAME>
+
+
+6. update package list 
+sudo apt update
+
+
+reference : https://github.com/ARM-software/armnn/blob/master/BuildGuideAndroidNDK.md
+Introduction
+These are step by step instructions for using the Android NDK to build ArmNN. They have been tested on a clean install of Ubuntu 18.04, and should also work with other OS versions. The instructions show how to build the ArmNN core library and the optional Caffe parser. All downloaded or generated files will be saved inside the ~/workspace directory.
+
+7. Download the Android NDK and make a standalone toolchain
+Download the Android NDK from the official website:
+sudo apt --yes install zip wget
+mkdir -p ~/workspace/toolchains
+cd ~/workspace/toolchains
+# For Mac OS, change the NDK download link accordingly.
+wget https://dl.google.com/android/repository/android-ndk-r17b-linux-x86_64.zip
+unzip android-ndk-r17b-linux-x86_64.zip
+export NDK=~/workspace/toolchains/android-ndk-r17b
+You may want to append export NDK=~/workspace/toolchains/android-ndk-r17b to your ~/.bashrc (or ~/.bash_profile in Mac OS).
+
+Make a standalone toolchain:
+(Requires python if not previously installed: sudo apt install python)
+# Create an arm64 API 26 libc++ toolchain.
+$NDK/build/tools/make_standalone_toolchain.py \
+--arch arm64 \
+--api 26 \
+--stl=libc++ \
+--install-dir=$HOME/workspace/toolchains/aarch64-android-r17b
+export PATH=$HOME/workspace/toolchains/aarch64-android-r17b/bin:$PATH
+
+You may want to append export PATH=$HOME/workspace/toolchains/aarch64-android-r16b/bin:$PATH to your ~/.bashrc (or ~/.bash_profile in Mac OS).
+
+8. Build the Boost C++ libraries
+
+Download Boost version 1.64:
+mkdir ~/workspace/boost
+cd ~/workspace/boost
+wget -c 'http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.bz2/download'
+tar -xvf download
+
+Build :
+(Requires gcc if not previously installed: sudo apt install gcc)
+echo "using gcc : arm : aarch64-linux-android-clang++ ;" > $HOME/workspace/boost/user-config.jam
+cd ~/workspace/boost/boost_1_64_0
+./bootstrap.sh --prefix=$HOME/workspace/boost/install
+./b2 install --user-config=$HOME/workspace/boost/user-config.jam \
+toolset=gcc-arm link=static cxxflags=-fPIC --with-filesystem \
+--with-test --with-log --with-program_options -j16
+
+9. Build the Compute Library
+Clone the Compute Library:
+(Requires Git if not previously installed: sudo apt install git)
+cd ~/workspace
+git clone https://github.com/ARM-software/ComputeLibrary.git
+
+Build:
+(Requires SCons if not previously installed: sudo apt install scons)
+cd ComputeLibrary
+scons arch=arm64-v8a neon=1 opencl=1 embed_kernels=1 extra_cxx_flags="-fPIC" \
+benchmark_tests=0 validation_tests=0 os=android -j16
+
+10. Build Google's Protobuf library
+Clone protobuf:
+ mkdir ~/workspace/google
+ cd ~/workspace/google
+ git clone https://github.com/google/protobuf.git
+ cd protobuf
+git checkout -b v3.5.2 v3.5.2
+
+Build a native (x86) version of the protobuf libraries and compiler (protoc):
+(Requires cUrl, autoconf, llibtool, and other build dependencies if not previously installed: sudo apt install curl autoconf libtool build-essential g++)
+./autogen.sh
+mkdir x86_build
+cd x86_build
+../configure --prefix=$HOME/workspace/google/x86_pb_install
+make install -j16
+cd ..
+
+Build the arm64 version of the protobuf libraries:
+ mkdir arm64_build
+ cd arm64_build
+ CC=aarch64-linux-android-clang \
+   CXX=aarch64-linux-android-clang++ \
+   CFLAGS="-fPIE -fPIC" LDFLAGS="-pie -llog" \
+    ../configure --host=aarch64-linux-android \
+    --prefix=$HOME/workspace/google/arm64_pb_install \
+    --with-protoc=$HOME/workspace/google/x86_pb_install/bin/protoc
+ make install -j16
+cd ..
+
+Build for caffe:
+sudo ./configure
+sudo make -j16
+sudo make check -j16
+sudo make install -j16
+
+sudo ldconfig
+protoc --version 
+
+
+출처: http://notetoday.tistory.com/entry/Ubuntu-Protocol-Buffer-설치-protoc 
+
+
+11. Download Caffe
+Clone Caffe source code:
+ cd ~/workspace/google/
+https://github.com/BVLC/caffe.git
+
+12. Build ArmNN
+Clone ArmNN source code:
+ cd ~/workspace/
+git clone https://github.com/ARM-software/armnn.git
+Install dependencies for Caffe:
+sudo apt --yes install libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev
+sudo apt --yes install --no-install-recommends libboost-all-dev
+sudo apt --yes install libatlas-base-dev
+sudo apt --yes install python-dev
+sudo apt --yes install libgflags-dev libgoogle-glog-dev liblmdb-dev
+
+Build Caffe:
+sudo apt install cmake
+mkdir build
+cd build
+cmake ..
+make all -j16
+make install -j16
+make runtest -j16
+
+Build ArmNN:
+mkdir ~/workspace/armnn/build
+cd ~/workspace/armnn/build
+CXX=aarch64-linux-android-clang++ \
+CC=aarch64-linux-android-clang \
+CXX_FLAGS="-fPIE -fPIC" \
+cmake .. \
+-DARMCOMPUTE_ROOT=/home/<USERNAME>/workspace/ComputeLibrary/ \
+-DARMCOMPUTE_BUILD_DIR=/home/USERNAME/workspace/ComputeLibrary/build \
+-DARMCOMPUTENEON=1 \
+-DCAFFE_GENERATED_SOURCES=/home/USERNAME/workspace/google/caffe/build/include/\
+-DBUILD_CAFFE_PARSER=1 \
+-DBOOST_ROOT=/home/USERNAME/workspace/boost/install\
+-DPROTOBUF_ROOT=$HOME/workspace/google/arm64_pb_install/
+make -j16
+
+If error was occurred, you would copy and paste at once (USERNAME change to your name):
+/home/USERNAME/workspace/toolchains/aarch64-android-r17b/bin/aarch64-linux-android-clang++   -std=c++14 -Wall -Werror -Wold-style-cast -Wno-missing-braces -Wconversion -Wsign-conversion -DNDEBUG -O3  -rdynamic CMakeFiles/UnitTests.dir/src/armnn/test/UnitTests.cpp.o CMakeFiles/UnitTests.dir/src/armnn/test/EndToEndTest.cpp.o CMakeFiles/UnitTests.dir/src/armnn/test/UtilsTests.cpp.o CMakeFiles/UnitTests.dir/src/armnn/test/GraphTests.cpp.o CMakeFiles/UnitTests.dir/src/armnn/test/OptimizerTests.cpp.o CMakeFiles/UnitTests.dir/src/armnn/test/RuntimeTests.cpp.o CMakeFiles/UnitTests.dir/src/armnn/test/TensorTest.cpp.o CMakeFiles/UnitTests.dir/src/armnn/test/Network_test.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/IsLayerSupportedTest.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/Reference.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/WorkloadDataValidation.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/TensorCopyUtils.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/LayerTests.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/CreateWorkloadRef.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/ArmComputeNeon.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/CreateWorkloadNeon.cpp.o CMakeFiles/UnitTests.dir/src/armnn/backends/test/MemCopyTests.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestAdd.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestConcat.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestDropout.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestInputs.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestMul.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestPooling2d.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestInPlace.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestMultiInputsOutputs.cpp.o CMakeFiles/UnitTests.dir/src/armnnCaffeParser/test/TestSplit.cpp.o  -o UnitTests -Wl,-rpath,/home/USERNAME/workspace/armnn/build:/home/USERNAME/workspace/google/arm64_pb_install/lib /home/USERNAME/workspace/boost/install/lib/libboost_unit_test_framework.a libarmnnCaffeParser.so libarmnn.so libarmnnUtils.a -ldl /home/USERNAME/workspace/ComputeLibrary/build/libarm_compute_core-static.a /home/USERNAME/workspace/ComputeLibrary/build/libarm_compute-static.a /home/USERNAME/workspace/ComputeLibrary/build/libarm_compute_core-static.a /home/USERNAME/workspace/ComputeLibrary/build/libarm_compute-static.a /home/USERNAME/workspace/boost/install/lib/libboost_log.a /home/USERNAME/workspace/boost/install/lib/libboost_thread.a /home/USERNAME/workspace/boost/install/lib/libboost_system.a /home/USERNAME/workspace/google/arm64_pb_install/lib/libprotobuf.so
+
+make -j16
+
+Run the ArmNN unit tests on an Android device (in the server )
+Push the build results to an Android device and make symbolic links for shared libraries:
+ adb push libarmnnCaffeParser.so /data/local/tmp/
+ adb push libarmnn.so  /data/local/tmp/
+adb push UnitTests  /data/local/tmp/
+adb push      $NDK/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_shared.so /data/local/tmp/
+adb push $HOME/workspace/google/arm64_pb_install/lib/libprotobuf.so    /data/local/tmp/libprotobuf.so.15.0.1
+ adb shell 'ln -s libprotobuf.so.15.0.1 /data/local/tmp/libprotobuf.so.15'
+adb shell 'ln -s libprotobuf.so.15.0.1 /data/local/tmp/libprotobuf.so'
+Run ArmNN unit tests:
+adb shell 'LD_LIBRARY_PATH=/data/local/tmp /data/local/tmp/UnitTests'
+If libarmnnUtils.a is present in ~/workspace/armnn/build/ and the unit tests run without failure then the build was successful.
+
