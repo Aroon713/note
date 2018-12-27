@@ -13,16 +13,16 @@ ENV https_proxy $https_proxy
 
 RUN apt-get update
 
-RUN apt-get --yes --force-yes install ncurses-dev
+RUN apt-get --yes install ncurses-dev
 
 ###
 ### Prequisites: Generic
 ###
-RUN apt-get --yes --force-yes install screen
-RUN apt-get --yes --force-yes install vim
-RUN apt-get --yes --force-yes install bash-completion
-RUN apt-get --yes --force-yes install sudo
-RUN apt-get --yes --force-yes install git
+RUN apt-get --yes install screen
+RUN apt-get --yes install vim
+RUN apt-get --yes install bash-completion
+RUN apt-get --yes install sudo
+RUN apt-get --yes install git
 
 RUN rm -rf /var/lib/apt/lists/*
 
