@@ -51,7 +51,7 @@ git config --global alias.lol "log --pretty=oneline --abbrev-commit --graph --de
 git config --global core.editor "vim"
 git config --global http.sslVerify false
 
-3. make setup_git.rc
+3. make setup_rc.sh
 # gdbinit
 echo "set history filename ~/.gdb_history" >> ~/.gdbinit
 echo "set history save on" >> ~/.gdbinit
