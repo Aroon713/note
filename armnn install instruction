@@ -67,7 +67,7 @@ echo "set shiftwidth=2" >> ~/.vimrc
 echo "set softtabstop=2">> ~/.vimrc
 
 4. make local docker image
-docker build -t <IMAGE_NAME>  -f Dockerfile --build-arg username=<USERNAME> --build-arg useruid=$UID --build-arg useremail=<YOUR_EMAIL> .
+docker build -t <IMAGE_NAME>:<TAG>  -f Dockerfile --build-arg username=<USERNAME> --build-arg useruid=$UID --build-arg useremail=<YOUR_EMAIL> .
 
 5. make container
 docker run --name <CONTAINER_NAME>  -it -e DISPLAY=$DISPLAY -v /home/<USERNAME>/workspace/:/home/<USERNAME>/workspace -v /tmp/.X11-unix:/tmp/.X11-unix -v /root/.Xauthority:/root/.Xauthority:rw -v /home/<YOUR_NAME>/.ssh:/home/<YOUR_NAME>/.ssh -p 8000:8000 <IMAGE_NAME>
